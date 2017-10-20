@@ -8,6 +8,7 @@ import Starscream
 import Foundation
 
 public class Socket: WebSocketDelegate {
+
     var conn: WebSocket?
     var endPoint: String?
     var channels: [Channel] = []
@@ -294,6 +295,10 @@ public class Socket: WebSocketDelegate {
     public func websocketDidWriteError(error: NSError?) {
         onError(error: error!)
     }
+
+	public func websocketDidDisconnect(socket: WebSocketClient, error: Error?) {
+		//
+	}
 
     func unwrappedJsonString(string: String?) -> String {
         if let stringVal = string {
