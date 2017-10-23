@@ -7,24 +7,33 @@ import Swift
 import Starscream
 import Foundation
 
-public class Socket: WebSocketDelegate {
+public protocol PhoenixSocketProtocol: class {
+    func phoenixDidConnect()
+    func phoenixDidDisconnect(error: Error?)
+    func phoenixDidReceiveMessage(text: String)
+    func phoenixDidReceiveData(data: Data)
+}
 
+public class Socket: WebSocketDelegate {
+    
+    public var phoenixDelegate: PhoenixSocketProtocol?
+    
     var conn: WebSocket?
     var endPoint: String?
     var channels: [Channel] = []
-
+    
     var sendBuffer: [Void] = []
     var sendBufferTimer = Timer()
     let flushEveryMs = 1.0
-
+    
     var reconnectTimer = Timer()
     let reconnectAfterMs = 1.0
-
+    
     var heartbeatTimer = Timer()
     let heartbeatDelay = 30.0
-
+    
     var messageReference: UInt64 = UInt64.min // 0 (max: 18,446,744,073,709,551,615)
-
+    
     /**
      Initializes a Socket connection
      - parameter domainAndPort: Phoenix server root path and proper port
@@ -35,15 +44,15 @@ public class Socket: WebSocketDelegate {
      */
     public init(domainAndPort:String, path:String, transport:String, prot:String = "http", params: [String: Any]? = nil) {
         self.endPoint = Path.endpointWithProtocol(prot: prot, domainAndPort: domainAndPort, path: path, transport: transport)
-
+        
         if let parameters = params {
             self.endPoint = self.endPoint! + "?" + parameters.map({ "\($0.0)=\($0.1)" }).joined(separator: "&")
         }
-
+        
         resetBufferTimer()
         reconnect()
     }
-
+    
     /**
      Closes socket connection
      - parameter callback: Function to run after close
@@ -53,11 +62,11 @@ public class Socket: WebSocketDelegate {
             connection.delegate = nil
             connection.disconnect()
         }
-
+        
         invalidateTimers()
         callback()
     }
-
+    
     /**
      Invalidate open timers to allow socket to be deallocated when closed
      */
@@ -65,12 +74,12 @@ public class Socket: WebSocketDelegate {
         heartbeatTimer.invalidate()
         reconnectTimer.invalidate()
         sendBufferTimer.invalidate()
-
+        
         heartbeatTimer = Timer()
         reconnectTimer = Timer()
         sendBufferTimer = Timer()
     }
-
+    
     /**
      Initializes a 30s timer to let Phoenix know this device is still alive
      */
@@ -78,7 +87,7 @@ public class Socket: WebSocketDelegate {
         heartbeatTimer.invalidate()
         heartbeatTimer = Timer.scheduledTimer(timeInterval: heartbeatDelay, target: self, selector: #selector(heartbeat), userInfo: nil, repeats: true)
     }
-
+    
     /**
      Heartbeat payload (Message) to send with each pulse
      */
@@ -87,7 +96,7 @@ public class Socket: WebSocketDelegate {
         let payload = Payload(topic: "phoenix", event: "heartbeat", message: message)
         send(data: payload)
     }
-
+    
     /**
      Reconnects to a closed socket connection
      */
@@ -100,7 +109,7 @@ public class Socket: WebSocketDelegate {
             }
         }
     }
-
+    
     /**
      Resets the message buffer timer and invalidates any existing ones
      */
@@ -109,7 +118,7 @@ public class Socket: WebSocketDelegate {
         sendBufferTimer = Timer.scheduledTimer(timeInterval: flushEveryMs, target: self, selector: #selector(flushSendBuffer), userInfo: nil, repeats: true)
         sendBufferTimer.fire()
     }
-
+    
     /**
      Kills reconnect timer and joins all open channels
      */
@@ -118,7 +127,7 @@ public class Socket: WebSocketDelegate {
         startHeartbeatTimer()
         rejoinAll()
     }
-
+    
     /**
      Starts reconnect timer onClose
      - parameter event: String event name
@@ -127,19 +136,19 @@ public class Socket: WebSocketDelegate {
         reconnectTimer.invalidate()
         reconnectTimer = Timer.scheduledTimer(timeInterval: reconnectAfterMs, target: self, selector: #selector(reconnect), userInfo: nil, repeats: true)
     }
-
+    
     /**
      Triggers error event
      - parameter error: NSError
      */
     func onError(error: NSError) {
-      Logger.debug(message: "Error: \(error)")
+        Logger.debug(message: "Error: \(error)")
         for chan in channels {
             let msg = Message(message: ["body": error.localizedDescription] as Any)
             chan.trigger(triggerEvent: "error", msg: msg)
         }
     }
-
+    
     /**
      Indicates if connection is established
      - returns: Bool
@@ -150,9 +159,9 @@ public class Socket: WebSocketDelegate {
         } else {
             return false
         }
-
+        
     }
-
+    
     /**
      Rejoins all Channel instances
      */
@@ -161,7 +170,7 @@ public class Socket: WebSocketDelegate {
             rejoin(chan: chan as Channel)
         }
     }
-
+    
     /**
      Rejoins a given Phoenix Channel
      - parameter chan: Channel
@@ -174,7 +183,7 @@ public class Socket: WebSocketDelegate {
             chan.callback(chan)
         }
     }
-
+    
     /**
      Joins socket
      - parameter topic:    String topic name
@@ -185,11 +194,11 @@ public class Socket: WebSocketDelegate {
         let chan = Channel(topic: topic, message: message, callback: callback, socket: self)
         channels.append(chan)
         if isConnected() {
-          Logger.debug(message: "joining")
+            Logger.debug(message: "joining")
             rejoin(chan: chan)
         }
     }
-
+    
     /**
      Leave open socket
      - parameter topic:   String topic name
@@ -208,7 +217,7 @@ public class Socket: WebSocketDelegate {
         }
         channels = newChannels
     }
-
+    
     /**
      Send payload over open socket
      - parameter data: Payload
@@ -218,7 +227,7 @@ public class Socket: WebSocketDelegate {
             (payload: Payload) -> Void in
             if let connection = self.conn {
                 let json = self.payloadToJson(payload: payload)
-              Logger.debug(message: "json: \(json)")
+                Logger.debug(message: "json: \(json)")
                 connection.write(string: json)
             }
         }
@@ -228,7 +237,7 @@ public class Socket: WebSocketDelegate {
             sendBuffer.append(callback(data))
         }
     }
-
+    
     /**
      Flush message buffer
      */
@@ -241,7 +250,7 @@ public class Socket: WebSocketDelegate {
             resetBufferTimer()
         }
     }
-
+    
     /**
      Trigger event on message received
      - parameter payload: Payload
@@ -254,52 +263,56 @@ public class Socket: WebSocketDelegate {
             }
         }
     }
-
+    
     // WebSocket Delegate Methods
-
+    
     public func websocketDidReceiveMessage(socket: WebSocketClient, text: String) {
-      Logger.debug(message: "socket message: \(text)")
-
+        phoenixDelegate?.phoenixDidReceiveMessage(text: text)
+        Logger.debug(message: "socket message: \(text)")
+        
         guard let data = text.data(using: String.Encoding.utf8),
             let json = try? JSONSerialization.jsonObject(with: data, options: []),
             let jsonObject = json as? [String: AnyObject] else {
-            Logger.debug(message: "Unable to parse JSON: \(text)")
+                Logger.debug(message: "Unable to parse JSON: \(text)")
                 return
         }
-
+        
         guard let topic = jsonObject["topic"] as? String, let event = jsonObject["event"] as? String,
             let msg = jsonObject["payload"] as? [String: AnyObject] else {
-              Logger.debug(message: "No phoenix message: \(text)")
+                Logger.debug(message: "No phoenix message: \(text)")
                 return
         }
         Logger.debug(message: "JSON Object: \(jsonObject)")
         let messagePayload = Payload(topic: topic, event: event, message: Message(message: msg))
         onMessage(payload: messagePayload)
     }
-
+    
     public func websocketDidReceiveData(socket: WebSocketClient, data: Data) {
-      Logger.debug(message: "got some data: \(data.count)")
+        phoenixDelegate?.phoenixDidReceiveData(data: data)
+        Logger.debug(message: "got some data: \(data.count)")
     }
-
+    
     public func websocketDidDisconnect(socket: WebSocketClient, error: NSError?) {
+        phoenixDelegate?.phoenixDidDisconnect(error: error)
         if let err = error { onError(error: err as NSError) }
         Logger.debug(message: "socket closed: \(error?.localizedDescription ?? "Unknown error")")
         onClose(event: "reason: \(error?.localizedDescription ?? "Unknown error")")
     }
-
+    
     public func websocketDidConnect(socket: WebSocketClient) {
-      Logger.debug(message: "socket opened")
+        phoenixDelegate?.phoenixDidConnect()
+        Logger.debug(message: "socket opened")
         onOpen()
     }
-
+    
     public func websocketDidWriteError(error: NSError?) {
         onError(error: error!)
     }
-
-	public func websocketDidDisconnect(socket: WebSocketClient, error: Error?) {
-		//
-	}
-
+    
+    public func websocketDidDisconnect(socket: WebSocketClient, error: Error?) {
+        //
+    }
+    
     func unwrappedJsonString(string: String?) -> String {
         if let stringVal = string {
             return stringVal
@@ -307,13 +320,13 @@ public class Socket: WebSocketDelegate {
             return ""
         }
     }
-
+    
     func makeRef() -> UInt64 {
         let newRef = messageReference + 1
         messageReference = (newRef == UInt64.max) ? 0 : newRef
         return newRef
     }
-
+    
     func payloadToJson(payload: Payload) -> String {
         let ref = makeRef()
         var json: [String: Any] = [
@@ -321,18 +334,18 @@ public class Socket: WebSocketDelegate {
             "event": payload.event,
             "ref": "\(ref)"
         ]
-
+        
         if let msg = payload.message.message {
             json["payload"] = msg
         } else {
             json["payload"] = payload.message.toDictionary()
         }
-
+        
         guard let jsonData = try? JSONSerialization.data(withJSONObject: json, options: []),
             let jsonString = String(data: jsonData, encoding: String.Encoding.utf8) else {
                 return ""
         }
-
+        
         return jsonString
     }
 }
