@@ -20,7 +20,7 @@ open class Channel {
      - parameter socket:   Socket for websocket connection
      - returns: Channel
      */
-    init(topic: String, message: Message, callback: @escaping ((Any) -> Void), socket: Socket) {
+    public init(topic: String, message: Message, callback: @escaping ((Any) -> Void), socket: Socket) {
         (self.topic, self.message, self.callback, self.socket) = (topic, message, { callback($0) }, socket)
         reset()
     }
