@@ -177,8 +177,8 @@ public class Socket: WebSocketDelegate {
      */
     func rejoin(chan: Channel) {
         chan.reset()
-        if let topic = chan.topic, let joinMessage = chan.message {
-            let payload = Payload(topic: topic, event: "phx_join", message: joinMessage)
+        if let joinMessage = chan.message {
+            let payload = Payload(topic: chan.topic, event: "phx_join", message: joinMessage)
             send(data: payload)
             chan.callback(chan)
         }
