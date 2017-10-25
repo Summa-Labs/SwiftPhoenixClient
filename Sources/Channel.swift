@@ -5,9 +5,9 @@
 
 import Swift
 
-public class Channel {
+open class Channel {
     var bindings: [Binding] = []
-    var topic: String?
+    var topic: String
     var message: Message?
     var callback: ((Any) -> Void?)
     weak var socket: Socket?
@@ -24,6 +24,11 @@ public class Channel {
         (self.topic, self.message, self.callback, self.socket) = (topic, message, { callback($0) }, socket)
         reset()
     }
+
+	/// Get channel name
+	public lazy var channelName = {
+		return topic
+	}()
 
     /**
      Removes existing bindings
@@ -84,7 +89,7 @@ public class Channel {
      */
     public func send(event: String, message: Message) {
         Logger.debug(message: "conn sending")
-        let payload = Payload(topic: topic!, event: event, message: message)
+        let payload = Payload(topic: topic, event: event, message: message)
         socket?.send(data: payload)
     }
 
@@ -94,8 +99,18 @@ public class Channel {
      */
     public func leave(message: Message) {
         if let sock = socket {
-            sock.leave(topic: topic!, message: message)
+            sock.leave(topic: topic, message: message)
         }
         reset()
     }
+}
+
+extension Channel: Hashable {
+	public var hashValue: Int {
+		return topic.hashValue
+	}
+
+	public static func ==(lhs: Channel, rhs: Channel) -> Bool {
+		return lhs.topic == rhs.topic
+	}
 }
