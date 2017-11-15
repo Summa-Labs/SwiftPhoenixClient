@@ -7,7 +7,7 @@
 #
 
 Pod::Spec.new do |s|
-  s.name             = "SwiftPhoenixClient"
+  s.name             = "GridSwiftPhoenixClient"
   s.version          = "0.6.1"
   s.summary          = "Connect your Phoenix and iOS applications through WebSockets!"
 
@@ -32,7 +32,7 @@ http://www.phoenixframework.org/docs/channels
   s.homepage         = "https://github.com/davidstump/SwiftPhoenixClient"
   s.license          = 'MIT'
   s.author           = { "David Stump" => "david@davidstump.net" }
-  s.source           = { :git => "https://github.com/davidstump/SwiftPhoenixClient.git", :tag => s.version.to_s }
+  s.source           = { :git => "https://github.com/Summa-Labs/SwiftPhoenixClient.git", :tag => s.version.to_s }
 
   s.platform     = :ios, '9.0'
   s.requires_arc = true
