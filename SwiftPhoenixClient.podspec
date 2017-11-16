@@ -7,7 +7,7 @@
 #
 
 Pod::Spec.new do |s|
-  s.name             = "GridSwiftPhoenixClient"
+  s.name             = "SwiftPhoenixClient"
   s.version          = "0.6.1"
   s.summary          = "Connect your Phoenix and iOS applications through WebSockets!"
 
