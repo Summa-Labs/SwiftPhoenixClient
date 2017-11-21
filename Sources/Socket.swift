@@ -271,7 +271,7 @@ public class Socket: WebSocketDelegate {
         Logger.debug(message: "socket message: \(text)")
         
         guard let data = text.data(using: String.Encoding.utf8),
-            let json = try? JSONSerialization.jsonObject(with: data, options: []),
+            let json = try? JSONSerialization.jsonObject(with: data, options: .mutableContainers),
             let jsonObject = json as? [String: AnyObject] else {
                 Logger.debug(message: "Unable to parse JSON: \(text)")
                 return
