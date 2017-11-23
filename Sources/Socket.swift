@@ -310,7 +310,7 @@ public class Socket: WebSocketDelegate {
     }
     
     public func websocketDidDisconnect(socket: WebSocketClient, error: Error?) {
-        //
+        self.phoenixDelegate?.phoenixDidDisconnect(error: error)
     }
     
     func unwrappedJsonString(string: String?) -> String {
