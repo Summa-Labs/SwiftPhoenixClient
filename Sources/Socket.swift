@@ -102,10 +102,12 @@ public class Socket: WebSocketDelegate {
      */
     @objc public func reconnect() {
         close() {
-            self.conn = WebSocket(url: NSURL(string: self.endPoint!)! as URL)
-            if let connection = self.conn {
-                connection.delegate = self
-                connection.connect()
+            if let endPoint = self.endPoint, let webSocketUrl = URL(string: endPoint) {
+                self.conn = WebSocket(url: webSocketUrl)
+                if let connection = self.conn {
+                    connection.delegate = self
+                    connection.connect()
+                }
             }
         }
     }
